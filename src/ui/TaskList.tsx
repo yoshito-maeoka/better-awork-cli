@@ -3,8 +3,8 @@ import TextInput from 'ink-text-input'
 import { useMemo, useState } from 'react'
 import type { Task } from '../api/schemas.js'
 import { normalize } from '../project/detect.js'
-import type { TaskFilter } from '../tasks/filter.js'
-import { formatDate, isOverdue } from '../text/format.js'
+import { assigneeIdsOf, type TaskFilter } from '../tasks/filter.js'
+import { fitText, formatAssignees, formatDate, isOverdue } from '../text/format.js'
 import { KeyHints } from './KeyHints.js'
 import { SelectList } from './SelectList.js'
 import { StatusBadge } from './StatusBadge.js'
@@ -12,9 +12,17 @@ import { StatusBadge } from './StatusBadge.js'
 // Header, search line, blank line and key hints.
 const CHROME_ROWS = 6
 const DUE_WIDTH = 11
+const BADGE_WIDTH = 14
+const CURSOR_WIDTH = 2
+const ROW_MARGIN = 2
+const ASSIGNEE_WIDTH = 18
+const MIN_NAME_WIDTH = 10
+/** Below this terminal width the assignee column is dropped so task names stay readable. */
+const MIN_WIDTH_FOR_ASSIGNEES = 70
 
 interface Props {
   tasks: readonly Task[]
+  meId: string
   projectName: string
   filter: TaskFilter
   isLoading: boolean
@@ -29,17 +37,34 @@ interface Props {
   onQuit: () => void
 }
 
+const personScope = (filter: TaskFilter): string => {
+  if (filter.mentionedOnly) return 'mentioning me'
+  return filter.mineOnly ? 'assigned to me' : 'everyone'
+}
+
 const matchesQuery = (task: Task, query: string) => normalize(task.name).includes(normalize(query))
 
-function TaskRow({ task, isSelected, width }: { task: Task; isSelected: boolean; width: number }) {
+interface TaskRowProps {
+  task: Task
+  meId: string
+  isSelected: boolean
+  width: number
+}
+
+function TaskRow({ task, meId, isSelected, width }: TaskRowProps) {
   const due = formatDate(task.dueOn)
-  const nameWidth = Math.max(width - 14 - DUE_WIDTH - 4, 10)
-  const name = task.name.length > nameWidth ? `${task.name.slice(0, nameWidth - 1)}…` : task.name.padEnd(nameWidth)
+  const showAssignees = width >= MIN_WIDTH_FOR_ASSIGNEES
+  const fixedWidth = CURSOR_WIDTH + BADGE_WIDTH + DUE_WIDTH + ROW_MARGIN + (showAssignees ? ASSIGNEE_WIDTH + 1 : 0)
+  const nameWidth = Math.max(width - fixedWidth, MIN_NAME_WIDTH)
+  const isMine = assigneeIdsOf(task).includes(meId)
   return (
     <Text inverse={isSelected}>
       {isSelected ? '› ' : '  '}
-      <StatusBadge status={task.taskStatus} />
-      <Text bold={isSelected}>{name}</Text>
+      <StatusBadge status={task.taskStatus} width={BADGE_WIDTH} />
+      <Text bold={isSelected}>{fitText(task.name, nameWidth)}</Text>
+      {showAssignees ? (
+        <Text color={isMine ? 'cyan' : 'gray'}> {fitText(formatAssignees(task.assignees), ASSIGNEE_WIDTH)}</Text>
+      ) : null}
       <Text color={isOverdue(task.dueOn) ? 'red' : 'gray'}> {due.padEnd(DUE_WIDTH - 1)}</Text>
     </Text>
   )
@@ -63,6 +88,7 @@ export function TaskList(props: Props) {
       } else if (input === '/') setSearching(true)
       else if (input === 'a') props.onFilterChange({ ...filter, mineOnly: !filter.mineOnly })
       else if (input === 'd') props.onFilterChange({ ...filter, includeDone: !filter.includeDone })
+      else if (input === 'm') props.onFilterChange({ ...filter, mentionedOnly: !filter.mentionedOnly })
       else if (input === 'r') props.onRefresh()
     },
     { isActive: !isSearching },
@@ -78,7 +104,7 @@ export function TaskList(props: Props) {
     { isActive: isSearching },
   )
 
-  const scope = `${filter.mineOnly ? 'assigned to me' : 'everyone'} · ${filter.includeDone ? 'all statuses' : 'open'}`
+  const scope = `${personScope(filter)} · ${filter.includeDone ? 'all statuses' : 'open'}`
   return (
     <Box flexDirection="column">
       <Box justifyContent="space-between">
@@ -105,7 +131,7 @@ export function TaskList(props: Props) {
       </Box>
       <Box marginTop={1} flexDirection="column">
         <SelectList
-          key={`${query}|${filter.mineOnly}|${filter.includeDone}`}
+          key={`${query}|${filter.mineOnly}|${filter.includeDone}|${filter.mentionedOnly}`}
           items={visible}
           height={height - CHROME_ROWS}
           initialIndex={initialIndex}
@@ -113,8 +139,10 @@ export function TaskList(props: Props) {
           keyOf={(t) => t.id}
           onSelect={props.onOpen}
           onHighlight={props.onHighlight}
-          emptyText={props.isLoading ? 'Loading tasks…' : 'No tasks match. Press a (everyone) or d (include done).'}
-          renderItem={(task, isSelected) => <TaskRow task={task} isSelected={isSelected} width={width} />}
+          emptyText={props.isLoading ? 'Loading tasks…' : 'No tasks match. Press a (everyone), m (mentions) or d (include done).'}
+          renderItem={(task, isSelected) => (
+            <TaskRow task={task} meId={props.meId} isSelected={isSelected} width={width} />
+          )}
         />
       </Box>
       <Box marginTop={1}>
@@ -124,6 +152,7 @@ export function TaskList(props: Props) {
             ['enter', 'open'],
             ['/', 'search'],
             ['a', filter.mineOnly ? 'everyone' : 'mine'],
+            ['m', filter.mentionedOnly ? 'all comments' : 'mentions'],
             ['d', filter.includeDone ? 'hide done' : 'show done'],
             ['r', 'refresh'],
             ['q', 'quit'],
