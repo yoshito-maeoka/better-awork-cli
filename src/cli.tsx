@@ -8,7 +8,6 @@ import { createClient } from './api/client.js'
 import { userName, type User } from './api/schemas.js'
 import { resolveToken, resolveUserId, saveConfig } from './config.js'
 import { findUser, isApiClient } from './identity.js'
-import { DEFAULT_FILTER } from './tasks/filter.js'
 import { App } from './ui/App.js'
 
 const VERSION = '0.1.0'
@@ -23,6 +22,7 @@ Usage
 
 Options
   -a, --all               Show tasks of everyone, not just yours
+  -m, --mentioned         Show tasks where a comment mentions you (any assignee)
   -d, --done              Include done tasks
   -p, --project <name|id> Use this project instead of detecting it
   -u, --user <email|name> With login: your awork user (skips the question)
@@ -33,12 +33,13 @@ Token lookup order: $BAW_TOKEN, $AWORK_TOKEN, ~/.config/baw/config.json, ~/.conf
 User: $BAW_USER_ID or userId in ~/.config/baw/config.json (set by baw login)
 
 Keys
-  list    ↑↓/jk move · enter open · / search · a mine/everyone · d done · r refresh · q quit
+  list    ↑↓/jk move · enter open · / search · a mine/everyone · m mentions · d done · r refresh · q quit
   task    s change status · c comment · ↑↓ scroll · r reload · esc back
 `
 
 interface TuiOptions {
   all: boolean
+  mentioned: boolean
   done: boolean
   project?: string
   forcePick: boolean
@@ -126,7 +127,7 @@ async function runTui(options: TuiOptions): Promise<void> {
       api={api}
       meId={meId}
       cwd={process.cwd()}
-      filter={{ ...DEFAULT_FILTER, mineOnly: !options.all, includeDone: options.done }}
+      filter={{ mineOnly: !options.all, includeDone: options.done, mentionedOnly: options.mentioned }}
       projectOverride={options.project}
       forcePick={options.forcePick}
       onFatal={(text) => {
@@ -144,6 +145,7 @@ async function main(): Promise<void> {
     options: {
       all: { type: 'boolean', short: 'a', default: false },
       done: { type: 'boolean', short: 'd', default: false },
+      mentioned: { type: 'boolean', short: 'm', default: false },
       project: { type: 'string', short: 'p' },
       user: { type: 'string', short: 'u' },
       help: { type: 'boolean', short: 'h', default: false },
@@ -154,7 +156,7 @@ async function main(): Promise<void> {
   if (values.version) return void process.stdout.write(`${VERSION}\n`)
 
   const [command, ...rest] = positionals
-  const tuiOptions = { all: values.all, done: values.done, project: values.project }
+  const tuiOptions = { all: values.all, done: values.done, mentioned: values.mentioned, project: values.project }
   switch (command) {
     case undefined:
     case 'ls':

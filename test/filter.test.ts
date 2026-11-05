@@ -24,23 +24,34 @@ describe('filterTasks', () => {
   ]
 
   test('defaults to tasks assigned to me that are not done', () => {
-    const result = filterTasks(tasks, 'me', { mineOnly: true, includeDone: false })
+    const result = filterTasks(tasks, 'me', { mineOnly: true, includeDone: false, mentionedOnly: false })
     expect(result.map((t) => t.id)).toEqual(['mine-open'])
   })
 
   test('includes everyone when mineOnly is false', () => {
-    const result = filterTasks(tasks, 'me', { mineOnly: false, includeDone: false })
+    const result = filterTasks(tasks, 'me', { mineOnly: false, includeDone: false, mentionedOnly: false })
     expect(result.map((t) => t.id)).toEqual(['mine-open', 'other-open'])
   })
 
   test('includes done tasks when requested', () => {
-    const result = filterTasks(tasks, 'me', { mineOnly: true, includeDone: true })
+    const result = filterTasks(tasks, 'me', { mineOnly: true, includeDone: true, mentionedOnly: false })
     expect(result.map((t) => t.id)).toEqual(['mine-open', 'mine-done'])
+  })
+
+  test('mentionedOnly keeps tasks mentioning me regardless of assignee', () => {
+    const mentioned = new Set(['other-open', 'mine-done'])
+    const result = filterTasks(tasks, 'me', { mineOnly: true, includeDone: false, mentionedOnly: true }, mentioned)
+    expect(result.map((t) => t.id)).toEqual(['other-open'])
+  })
+
+  test('mentionedOnly shows nothing until mentions are known', () => {
+    const result = filterTasks(tasks, 'me', { mineOnly: false, includeDone: true, mentionedOnly: true })
+    expect(result).toEqual([])
   })
 
   test('does not mutate the input', () => {
     const copy = [...tasks]
-    filterTasks(tasks, 'me', { mineOnly: true, includeDone: false })
+    filterTasks(tasks, 'me', { mineOnly: true, includeDone: false, mentionedOnly: false })
     expect(tasks).toEqual(copy)
   })
 })

@@ -14,7 +14,7 @@ const [TODO, PROGRESS, DONE] = STATUSES as [TaskStatus, TaskStatus, TaskStatus]
 
 const TASKS: Task[] = [
   { id: 't1', name: 'Fix login bug', taskStatus: TODO, assignees: [{ id: 'me', firstName: 'Yo' }], description: '<p>Steps to reproduce</p>' },
-  { id: 't2', name: 'Someone else task', taskStatus: TODO, assignees: [{ id: 'other' }] },
+  { id: 't2', name: 'Someone else task', taskStatus: TODO, assignees: [{ id: 'other', firstName: 'Bob', lastName: 'Builder' }] },
   { id: 't3', name: 'Old finished thing', taskStatus: DONE, assignees: [{ id: 'me' }] },
 ]
 
@@ -70,6 +70,29 @@ describe('ProjectBoard', () => {
     ui.stdin.write('d')
     await tick()
     expect(ui.lastFrame()).toContain('Old finished thing')
+  })
+
+  test('m shows tasks where a comment mentions me', async () => {
+    const { api, ui } = await setup()
+    vi.mocked(api.comments).mockImplementation(async (id: string) =>
+      id === 't2' ? [{ id: 'c9', message: '<p>~[userId:me] can you look?</p>', userId: 'u2' }] : [],
+    )
+    ui.stdin.write('m')
+    await tick()
+    const frame = ui.lastFrame() ?? ''
+    expect(frame).toContain('mentioning me')
+    expect(frame).toContain('Someone else task')
+    expect(frame).not.toContain('Fix login bug')
+    expect(api.comments).not.toHaveBeenCalledWith('t3')
+  })
+
+  test('shows who is assigned to each task', async () => {
+    const { ui } = await setup()
+    ui.stdin.write('a')
+    await tick()
+    const frame = ui.lastFrame() ?? ''
+    expect(frame).toContain('Bob Builder')
+    expect(frame).toMatch(/Fix login bug\s+Yo\s/)
   })
 
   test('enter opens the task with description and comments', async () => {
