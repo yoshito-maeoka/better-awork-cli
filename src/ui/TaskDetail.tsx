@@ -8,6 +8,7 @@ import { buildDetailLines } from './detailLines.js'
 import { KeyHints } from './KeyHints.js'
 import { StatusBadge } from './StatusBadge.js'
 import { StatusPicker } from './StatusPicker.js'
+import type { BrowserResult } from './ProjectBoard.js'
 import { useTaskDetail } from './useTaskDetail.js'
 
 type Mode = 'view' | 'status' | 'comment'
@@ -27,6 +28,7 @@ interface Props {
   width: number
   onBack: () => void
   onTaskUpdated: (task: Task) => void
+  onOpenInBrowser: (task: Task) => Promise<BrowserResult>
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
@@ -34,8 +36,10 @@ const clamp = (value: number, min: number, max: number) => Math.min(Math.max(val
 const panelRowsFor = (mode: Mode, statusCount: number): number =>
   mode === 'status' ? statusCount + STATUS_PANEL_EXTRA_ROWS : mode === 'comment' ? COMMENT_PANEL_ROWS : 0
 
-export function TaskDetail({ api, task: initial, statuses, height, width, onBack, onTaskUpdated }: Props) {
+export function TaskDetail(props: Props) {
+  const { api, task: initial, statuses, height, width, onBack, onTaskUpdated } = props
   const detail = useTaskDetail(api, initial, onTaskUpdated)
+  const [browserResult, setBrowserResult] = useState<BrowserResult>()
   const { task } = detail
   const [mode, setMode] = useState<Mode>('view')
   const [scroll, setScroll] = useState(0)
@@ -61,6 +65,7 @@ export function TaskDetail({ api, task: initial, statuses, height, width, onBack
       else if (input === 'r') void detail.reload()
       else if (input === 's' && statuses.length > 0 && !detail.isBusy) setMode('status')
       else if (input === 'c' && !detail.isBusy) setMode('comment')
+      else if (input === 'w') void props.onOpenInBrowser(task).then(setBrowserResult)
     },
     { isActive: mode === 'view' },
   )
@@ -96,7 +101,12 @@ export function TaskDetail({ api, task: initial, statuses, height, width, onBack
           </>
         ) : null}
       </Text>
-      <StatusMessage error={detail.error} isBusy={detail.isBusy} isLoading={detail.isLoading} notice={detail.notice} />
+      <StatusMessage
+        error={browserResult?.isOk === false ? browserResult.message : detail.error}
+        isBusy={detail.isBusy}
+        isLoading={detail.isLoading}
+        notice={browserResult?.isOk ? browserResult.message : detail.notice}
+      />
       <Box flexDirection="column" marginTop={1} height={bodyRows}>
         {lines.slice(offset, offset + bodyRows).map((line, i) => (
           <Text key={offset + i} color={line.color} bold={line.bold} dimColor={line.dim}>
@@ -115,6 +125,7 @@ export function TaskDetail({ api, task: initial, statuses, height, width, onBack
           hints={[
             ['s', 'status'],
             ['c', 'comment'],
+            ['w', 'web'],
             ['↑↓', 'scroll'],
             ['r', 'reload'],
             ['esc', 'back'],

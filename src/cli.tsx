@@ -33,8 +33,8 @@ Token lookup order: $BAW_TOKEN, $AWORK_TOKEN, ~/.config/baw/config.json, ~/.conf
 User: $BAW_USER_ID or userId in ~/.config/baw/config.json (set by baw login)
 
 Keys
-  list    ↑↓/jk move · enter open · / search · a mine/everyone · m mentions · d done · r refresh · q quit
-  task    s change status · c comment · ↑↓ scroll · r reload · esc back
+  list    ↑↓/jk move · enter open · w web · / search · a mine/everyone · m mentions · d done · r refresh · q quit
+  task    s change status · c comment · w web · ↑↓ scroll · r reload · esc back
 `
 
 interface TuiOptions {

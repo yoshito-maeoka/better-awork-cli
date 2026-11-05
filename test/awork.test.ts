@@ -28,6 +28,20 @@ describe('createAworkApi', () => {
     await expect(createAworkApi(fakeClient({})).addComment('t1', '   ')).rejects.toThrow(/empty/)
   })
 
+  test('taskUrl builds the web link from the workspace url and caches /me', async () => {
+    const client = fakeClient({ '/me': { id: 'u', workspace: { url: 'https://acme.awork.com/' } } })
+    const api = createAworkApi(client)
+    expect(await api.taskUrl('t 1')).toBe('https://acme.awork.com/tasks/t%201/details')
+    await api.taskUrl('t2')
+    expect(client.get).toHaveBeenCalledTimes(1)
+  })
+
+  test('taskUrl refuses a missing or non-https workspace url', async () => {
+    await expect(createAworkApi(fakeClient({ '/me': { id: 'u' } })).taskUrl('t')).rejects.toThrow(/workspace/)
+    const insecure = fakeClient({ '/me': { id: 'u', workspace: { url: 'javascript:alert(1)' } } })
+    await expect(createAworkApi(insecure).taskUrl('t')).rejects.toThrow(/workspace/)
+  })
+
   test('taskStatuses are sorted by order', async () => {
     const client = fakeClient({
       '/projects/p1/taskstatuses': [
