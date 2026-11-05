@@ -32,6 +32,7 @@ interface Props {
   selectedId?: string
   onHighlight: (task: Task) => void
   onOpen: (task: Task) => void
+  onOpenInBrowser: (task: Task) => void
   onFilterChange: (filter: TaskFilter) => void
   onRefresh: () => void
   onQuit: () => void
@@ -79,6 +80,7 @@ export function TaskList(props: Props) {
     visible.findIndex((t) => t.id === props.selectedId),
     0,
   )
+  const highlighted = visible[initialIndex]
 
   useInput(
     (input, key) => {
@@ -90,6 +92,7 @@ export function TaskList(props: Props) {
       else if (input === 'd') props.onFilterChange({ ...filter, includeDone: !filter.includeDone })
       else if (input === 'm') props.onFilterChange({ ...filter, mentionedOnly: !filter.mentionedOnly })
       else if (input === 'r') props.onRefresh()
+      else if (input === 'w' && highlighted) props.onOpenInBrowser(highlighted)
     },
     { isActive: !isSearching },
   )
@@ -150,6 +153,7 @@ export function TaskList(props: Props) {
           hints={[
             ['↑↓', 'move'],
             ['enter', 'open'],
+            ['w', 'web'],
             ['/', 'search'],
             ['a', filter.mineOnly ? 'everyone' : 'mine'],
             ['m', filter.mentionedOnly ? 'all comments' : 'mentions'],

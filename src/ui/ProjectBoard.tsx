@@ -2,6 +2,7 @@ import { useApp, useWindowSize } from 'ink'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { AworkApi } from '../api/awork.js'
 import type { Task, TaskStatus } from '../api/schemas.js'
+import { openUrl as openInDefaultBrowser } from '../browser.js'
 import type { ProjectRef } from '../project/resolve.js'
 import { filterTasks, isDone, sortTasks, type TaskFilter } from '../tasks/filter.js'
 import { TaskDetail } from './TaskDetail.js'
@@ -14,12 +15,27 @@ interface Props {
   project: ProjectRef
   initialFilter: TaskFilter
   notice?: string
+  /** Injected for tests; defaults to the system browser. */
+  openUrl?: (url: string) => Promise<void>
+}
+
+/** Outcome of opening a task in the browser, ready to show to the user. */
+export interface BrowserResult {
+  isOk: boolean
+  message: string
 }
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err))
 
 /** Owns the project's tasks and switches between the list and a task's detail view. */
-export function ProjectBoard({ api, meId, project, initialFilter, notice: initialNotice }: Props) {
+export function ProjectBoard({
+  api,
+  meId,
+  project,
+  initialFilter,
+  notice: initialNotice,
+  openUrl = openInDefaultBrowser,
+}: Props) {
   const { exit } = useApp()
   const { rows, columns } = useWindowSize()
   const [tasks, setTasks] = useState<Task[]>([])
@@ -64,6 +80,18 @@ export function ProjectBoard({ api, meId, project, initialFilter, notice: initia
     [tasks, meId, filter, mentions.mentionedIds],
   )
 
+  const openInBrowser = useCallback(
+    async (task: Task): Promise<BrowserResult> => {
+      try {
+        await openUrl(await api.taskUrl(task.id))
+        return { isOk: true, message: `Opened in browser: ${task.name}` }
+      } catch (err) {
+        return { isOk: false, message: `Could not open browser: ${message(err)}` }
+      }
+    },
+    [api, openUrl],
+  )
+
   const replaceTask = useCallback((updated: Task) => {
     setTasks((current) => current.map((t) => (t.id === updated.id ? updated : t)))
   }, [])
@@ -77,6 +105,7 @@ export function ProjectBoard({ api, meId, project, initialFilter, notice: initia
         height={rows}
         width={columns}
         onBack={() => setOpenTask(undefined)}
+        onOpenInBrowser={openInBrowser}
         onTaskUpdated={replaceTask}
       />
     )
@@ -95,6 +124,7 @@ export function ProjectBoard({ api, meId, project, initialFilter, notice: initia
       selectedId={selectedId}
       onHighlight={(t) => setSelectedId(t.id)}
       onOpen={setOpenTask}
+      onOpenInBrowser={(task) => void openInBrowser(task).then((result) => setNotice(result.message))}
       onFilterChange={setFilter}
       onRefresh={() => void load()}
       onQuit={exit}

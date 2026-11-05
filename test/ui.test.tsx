@@ -30,6 +30,7 @@ const fakeApi = (): AworkApi => ({
   user: vi.fn(async () => ({ id: 'u2', firstName: 'Ada', lastName: 'Lovelace' })),
   changeStatus: vi.fn(async () => {}),
   addComment: vi.fn(async () => {}),
+  taskUrl: vi.fn(async (id: string) => `https://acme.awork.com/tasks/${id}/details`),
 })
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 20))
@@ -38,9 +39,12 @@ const DOWN = '\u001B[B'
 
 const setup = async () => {
   const api = fakeApi()
-  const ui = render(<ProjectBoard api={api} meId="me" project={{ id: 'p', name: 'Shop' }} initialFilter={DEFAULT_FILTER} />)
+  const openUrl = vi.fn(async () => {})
+  const ui = render(
+    <ProjectBoard api={api} meId="me" project={{ id: 'p', name: 'Shop' }} initialFilter={DEFAULT_FILTER} openUrl={openUrl} />,
+  )
   await tick()
-  return { api, ui }
+  return { api, ui, openUrl }
 }
 
 const openStatusPickerAndMoveDown = async (ui: Awaited<ReturnType<typeof setup>>['ui']) => {
@@ -93,6 +97,25 @@ describe('ProjectBoard', () => {
     const frame = ui.lastFrame() ?? ''
     expect(frame).toContain('Bob Builder')
     expect(frame).toMatch(/Fix login bug\s+Yo\s/)
+  })
+
+  test('w opens the highlighted task in the browser', async () => {
+    const { ui, openUrl } = await setup()
+    ui.stdin.write('w')
+    await tick()
+    expect(openUrl).toHaveBeenCalledWith('https://acme.awork.com/tasks/t1/details')
+    expect(ui.lastFrame()).toContain('Opened in browser')
+  })
+
+  test('w in the detail view opens that task and reports failures', async () => {
+    const { ui, openUrl } = await setup()
+    openUrl.mockRejectedValueOnce(new Error('xdg-open not found'))
+    ui.stdin.write(ENTER)
+    await tick()
+    ui.stdin.write('w')
+    await tick()
+    expect(openUrl).toHaveBeenCalledWith('https://acme.awork.com/tasks/t1/details')
+    expect(ui.lastFrame()).toContain('xdg-open not found')
   })
 
   test('enter opens the task with description and comments', async () => {

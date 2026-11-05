@@ -26,12 +26,32 @@ export interface AworkApi {
   user(id: string): Promise<User | null>
   changeStatus(taskId: string, statusId: string): Promise<void>
   addComment(taskId: string, text: string): Promise<void>
+  /** Link to the task in the awork web app. */
+  taskUrl(taskId: string): Promise<string>
 }
 
 const enc = encodeURIComponent
 
+/** The workspace's https origin, e.g. https://acme.awork.com, from a /me payload. */
+function workspaceOrigin(me: User): string {
+  const raw = me.workspace?.url
+  const url = raw && URL.canParse(raw) ? new URL(raw) : undefined
+  if (url?.protocol !== 'https:') throw new Error('awork did not return a valid workspace URL for this token.')
+  return url.origin
+}
+
 export function createAworkApi(client: Client): AworkApi {
   const users = new Map<string, Promise<User | null>>()
+  let origin: Promise<string> | undefined
+
+  const workspace = (): Promise<string> => {
+    origin ??= client.get('/me', UserSchema).then(workspaceOrigin)
+    // Do not cache a failure; the next attempt should ask again.
+    origin.catch(() => {
+      origin = undefined
+    })
+    return origin
+  }
 
   return {
     me: () => client.get('/me', UserSchema),
@@ -60,5 +80,6 @@ export function createAworkApi(client: Client): AworkApi {
       if (!text.trim()) throw new Error('Comment is empty.')
       await client.post(`/tasks/${enc(taskId)}/comments`, { message: textToHtml(text) })
     },
+    taskUrl: async (taskId) => `${await workspace()}/tasks/${enc(taskId)}/details`,
   }
 }

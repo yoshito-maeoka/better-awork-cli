@@ -7,6 +7,8 @@ export const UserSchema = z.looseObject({
   firstName: z.string().nullish(),
   lastName: z.string().nullish(),
   userContactInfos: z.array(z.looseObject({ type: z.string().nullish(), value: z.string().nullish() })).nullish(),
+  /** Only present on /me: the workspace the token belongs to. */
+  workspace: z.looseObject({ url: z.string().nullish() }).nullish(),
 })
 export type User = z.infer<typeof UserSchema>
 
