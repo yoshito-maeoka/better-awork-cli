@@ -27,6 +27,7 @@ const fakeApi = (): AworkApi => ({
   task: vi.fn(async (id: string) => TASKS.find((t) => t.id === id)!),
   taskStatuses: vi.fn(async () => STATUSES),
   comments: vi.fn(async () => [{ id: 'c1', message: '<p>First!</p>', userId: 'u2', createdOn: '2026-11-01T10:00:00Z' }]),
+  checklist: vi.fn(async () => [{ id: 'i1', name: 'Write tests', isDone: true, order: 1 }]),
   user: vi.fn(async () => ({ id: 'u2', firstName: 'Ada', lastName: 'Lovelace' })),
   changeStatus: vi.fn(async () => {}),
   addComment: vi.fn(async () => {}),
@@ -126,6 +127,7 @@ describe('ProjectBoard', () => {
     expect(frame).toContain('Steps to reproduce')
     expect(frame).toContain('Ada Lovelace')
     expect(frame).toContain('First!')
+    expect(frame).toContain('[x] Write tests')
   })
 
   test('s changes the status from the detail view', async () => {

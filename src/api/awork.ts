@@ -2,11 +2,13 @@ import { z } from 'zod'
 import { textToHtml } from '../text/html.js'
 import type { Client } from './client.js'
 import {
+  ChecklistItemSchema,
   CommentSchema,
   ProjectSchema,
   TaskSchema,
   TaskStatusSchema,
   UserSchema,
+  type ChecklistItem,
   type Comment,
   type Project,
   type Task,
@@ -23,6 +25,7 @@ export interface AworkApi {
   task(id: string): Promise<Task>
   taskStatuses(projectId: string): Promise<TaskStatus[]>
   comments(taskId: string): Promise<Comment[]>
+  checklist(taskId: string): Promise<ChecklistItem[]>
   user(id: string): Promise<User | null>
   changeStatus(taskId: string, statusId: string): Promise<void>
   addComment(taskId: string, text: string): Promise<void>
@@ -65,6 +68,7 @@ export function createAworkApi(client: Client): AworkApi {
       return [...statuses].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     },
     comments: (taskId) => client.get(`/tasks/${enc(taskId)}/comments`, z.array(CommentSchema)),
+    checklist: (taskId) => client.get(`/tasks/${enc(taskId)}/checklistitems`, z.array(ChecklistItemSchema)),
     user: (id) => {
       const cached = users.get(id)
       if (cached) return cached

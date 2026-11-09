@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { AworkApi } from '../api/awork.js'
-import type { Task, TaskStatus } from '../api/schemas.js'
+import type { ChecklistItem, Task, TaskStatus } from '../api/schemas.js'
 import { byCreatedOn, type AuthoredComment } from './detailLines.js'
 
 export interface TaskDetailState {
   task: Task
   comments: AuthoredComment[]
+  checklist: ChecklistItem[]
   isLoading: boolean
   isBusy: boolean
   error?: string
@@ -21,6 +22,7 @@ const message = (err: unknown) => (err instanceof Error ? err.message : String(e
 export function useTaskDetail(api: AworkApi, initial: Task, onTaskUpdated: (task: Task) => void): TaskDetailState {
   const [task, setTask] = useState(initial)
   const [comments, setComments] = useState<AuthoredComment[]>([])
+  const [checklist, setChecklist] = useState<ChecklistItem[]>([])
   const [isLoading, setLoading] = useState(true)
   const [isBusy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
@@ -38,8 +40,9 @@ export function useTaskDetail(api: AworkApi, initial: Task, onTaskUpdated: (task
     setLoading(true)
     setError(undefined)
     try {
-      const [fresh] = await Promise.all([api.task(initial.id), loadComments()])
+      const [fresh, items] = await Promise.all([api.task(initial.id), api.checklist(initial.id), loadComments()])
       setTask(fresh)
+      setChecklist(items)
     } catch (err) {
       setError(message(err))
     } finally {
@@ -81,5 +84,5 @@ export function useTaskDetail(api: AworkApi, initial: Task, onTaskUpdated: (task
       return 'Comment posted.'
     })
 
-  return { task, comments, isLoading, isBusy, error, notice, reload, changeStatus, addComment }
+  return { task, comments, checklist, isLoading, isBusy, error, notice, reload, changeStatus, addComment }
 }

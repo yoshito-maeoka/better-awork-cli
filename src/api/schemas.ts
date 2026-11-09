@@ -42,11 +42,23 @@ export type Project = z.infer<typeof ProjectSchema>
 
 export const CommentSchema = z.looseObject({
   id: z.string(),
+  /** Raw HTML with references stored as `~[userId:<uuid>]`, `~[fileId:<uuid>]`, … */
   message: z.string().nullish(),
+  /** Same HTML with references already resolved to names (`@Ada Lovelace`, file names). */
+  plainFormattedMessage: z.string().nullish(),
+  mentions: z.looseObject({ users: z.array(UserSchema).nullish() }).nullish(),
   userId: z.string().nullish(),
   createdOn: z.string().nullish(),
 })
 export type Comment = z.infer<typeof CommentSchema>
+
+export const ChecklistItemSchema = z.looseObject({
+  id: z.string(),
+  name: z.string(),
+  isDone: z.boolean(),
+  order: z.number().nullish(),
+})
+export type ChecklistItem = z.infer<typeof ChecklistItemSchema>
 
 export const userName = (user: Pick<User, 'firstName' | 'lastName'> | undefined): string =>
   user ? [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Unknown' : 'Unknown'

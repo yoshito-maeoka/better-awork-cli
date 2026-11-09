@@ -24,6 +24,11 @@ describe('createAworkApi', () => {
     expect(client.post).toHaveBeenCalledWith('/tasks/t1/comments', { message: '<p>a &lt; b</p>' })
   })
 
+  test('checklist fetches the task checklist items', async () => {
+    const client = fakeClient({ '/tasks/t1/checklistitems': [{ id: 'i1', name: 'Do it', isDone: false, order: 1 }] })
+    expect(await createAworkApi(client).checklist('t1')).toEqual([{ id: 'i1', name: 'Do it', isDone: false, order: 1 }])
+  })
+
   test('addComment rejects empty text', async () => {
     await expect(createAworkApi(fakeClient({})).addComment('t1', '   ')).rejects.toThrow(/empty/)
   })

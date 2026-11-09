@@ -45,8 +45,12 @@ export function TaskDetail(props: Props) {
   const [scroll, setScroll] = useState(0)
 
   const lines = useMemo(
-    () => buildDetailLines(task.description, detail.comments, width - HORIZONTAL_PADDING),
-    [task.description, detail.comments, width],
+    () =>
+      buildDetailLines(
+        { description: task.description, checklist: detail.checklist, comments: detail.comments },
+        width - HORIZONTAL_PADDING,
+      ),
+    [task.description, detail.checklist, detail.comments, width],
   )
   const bodyRows = Math.max(height - CHROME_ROWS - panelRowsFor(mode, statuses.length), MIN_BODY_ROWS)
   const maxScroll = Math.max(lines.length - bodyRows, 0)
